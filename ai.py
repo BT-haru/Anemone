@@ -1,4 +1,5 @@
 import random
+import copy
 
 BLACK = 1
 WHITE = 2
@@ -13,6 +14,7 @@ board = [
     [0, 0, 0, 0, 0, 0],
 ]
 
+# 各種関数（判定や盤面操作など）は既存コードと同様
 def can_place_x_y(board, stone, x, y):
     if board[y][x] != 0:
         return False
@@ -86,31 +88,6 @@ def evaluate_board(board, stone):
 
     return score
 
-def minimax(board, stone, depth, is_maximizing):
-    opponent = 3 - stone
-
-    if depth == 0 or not can_place(board, stone) and not can_place(board, opponent):
-        return evaluate_board(board, stone)
-
-    if is_maximizing:
-        max_eval = -float('inf')
-        for y in range(len(board)):
-            for x in range(len(board[0])):
-                if can_place_x_y(board, stone, x, y):
-                    new_board = make_move(board, stone, x, y)
-                    eval = minimax(new_board, opponent, depth - 1, False)
-                    max_eval = max(max_eval, eval)
-        return max_eval
-    else:
-        min_eval = float('inf')
-        for y in range(len(board)):
-            for x in range(len(board[0])):
-                if can_place_x_y(board, opponent, x, y):
-                    new_board = make_move(board, opponent, x, y)
-                    eval = minimax(new_board, stone, depth - 1, True)
-                    min_eval = min(min_eval, eval)
-        return min_eval
-
 def dynamic_depth(empty_cells):
     if empty_cells > 20:
         return 2
@@ -119,30 +96,45 @@ def dynamic_depth(empty_cells):
     else:
         return 5
 
-def best_place_with_risk_management(board, stone):
-    corners = [(0, 0), (0, 5), (5, 0), (5, 5)]
-    x_squares = [(0, 1), (1, 0), (1, 1), (0, 4), (1, 5), (1, 4),
-                 (4, 0), (5, 1), (4, 1), (4, 5), (5, 4), (4, 4)]
+# モンテカルロ探索を追加
+def monte_carlo_simulation(board, stone, x, y, simulations=30):
+    opponent = 3 - stone
+    win_count = 0
 
+    for _ in range(simulations):
+        simulated_board = make_move(board, stone, x, y)
+        current_player = opponent
+
+        # ランダムプレイアウト
+        while can_place(simulated_board, stone) or can_place(simulated_board, opponent):
+            if can_place(simulated_board, current_player):
+                possible_moves = [
+                    (i, j) for j in range(len(board)) for i in range(len(board[0]))
+                    if can_place_x_y(simulated_board, current_player, i, j)
+                ]
+                move = random.choice(possible_moves)
+                simulated_board = make_move(simulated_board, current_player, move[0], move[1])
+            current_player = 3 - current_player
+
+        # 勝敗判定
+        final_score = sum(row.count(stone) for row in simulated_board)
+        opponent_score = sum(row.count(opponent) for row in simulated_board)
+        if final_score > opponent_score:
+            win_count += 1
+
+    return win_count / simulations  # 勝率を返す
+
+def best_place_with_monte_carlo(board, stone):
     best_score = -float('inf')
     best_move = None
 
     for y in range(len(board)):
         for x in range(len(board[0])):
-            if not can_place_x_y(board, stone, x, y):
-                continue
-
-            if (x, y) in corners:
-                return (x, y)
-
-            score = evaluate_board(make_move(board, stone, x, y), stone)
-
-            if (x, y) in x_squares:
-                score -= 100
-
-            if score > best_score:
-                best_score = score
-                best_move = (x, y)
+            if can_place_x_y(board, stone, x, y):
+                win_rate = monte_carlo_simulation(board, stone, x, y)
+                if win_rate > best_score:
+                    best_score = win_rate
+                    best_move = (x, y)
 
     return best_move
 
@@ -152,23 +144,5 @@ class AnemoneAI(object):
         return "🌺"
 
     def place(self, board, stone):
-        empty_cells = sum(row.count(0) for row in board)
-
-        # 手を打てない場合は "パス" を示す特別な値を返す
-      #  if not can_place(board, stone):
-       #     return (-1, -1)
-
-        depth = dynamic_depth(empty_cells)
-        best_eval = -float('inf')
-        best_move = None
-
-        for y in range(len(board)):
-            for x in range(len(board[0])):
-                if can_place_x_y(board, stone, x, y):
-                    new_board = make_move(board, stone, x, y)
-                    eval = minimax(new_board, stone, depth, False)
-                    if eval > best_eval:
-                        best_eval = eval
-                        best_move = (x, y)
-
-        return best_move
+        # モンテカルロ探索による最適な手を選ぶ
+        return best_place_with_monte_carlo(board, stone)
