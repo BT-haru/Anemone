@@ -146,3 +146,6 @@ class AnemoneAI(object):
     def place(self, board, stone):
         # モンテカルロ探索による最適な手を選ぶ
         return best_place_with_monte_carlo(board, stone)
+    def place(self, board, stone):
+        x, y = random_place(board, stone)  # kogi_canvas.othello から random_place をインポート
+        return x, y
