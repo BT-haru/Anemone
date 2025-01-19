@@ -1,7 +1,4 @@
-
 import random
-
-from kogi_canvas import play_othello, PandaAI
 
 BLACK = 1
 WHITE = 2
@@ -44,28 +41,6 @@ def can_place(board, stone):
                 return True
     return False
 
-def count_flippable_stones(board, stone, x, y):
-    if board[y][x] != 0:
-        return 0
-
-    opponent = 3 - stone
-    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-    total_flipped = 0
-
-    for dx, dy in directions:
-        nx, ny = x + dx, y + dy
-        flipped = 0
-
-        while 0 <= nx < len(board[0]) and 0 <= ny < len(board) and board[ny][nx] == opponent:
-            flipped += 1
-            nx += dx
-            ny += dy
-
-        if 0 <= nx < len(board[0]) and 0 <= ny < len(board) and board[ny][nx] == stone:
-            total_flipped += flipped
-
-    return total_flipped
-
 def make_move(board, stone, x, y):
     new_board = [row[:] for row in board]
     opponent = 3 - stone
@@ -89,13 +64,26 @@ def make_move(board, stone, x, y):
     return new_board
 
 def evaluate_board(board, stone):
+    opponent = 3 - stone
     score = 0
+
+    # 重み付けのための評価マップ
+    weight_map = [
+        [100, -20, 10, 10, -20, 100],
+        [-20, -50, -2, -2, -50, -20],
+        [10, -2, 1, 1, -2, 10],
+        [10, -2, 1, 1, -2, 10],
+        [-20, -50, -2, -2, -50, -20],
+        [100, -20, 10, 10, -20, 100]
+    ]
+
     for y in range(len(board)):
         for x in range(len(board[0])):
             if board[y][x] == stone:
-                score += 1
-            elif board[y][x] == 3 - stone:
-                score -= 1
+                score += weight_map[y][x]
+            elif board[y][x] == opponent:
+                score -= weight_map[y][x]
+
     return score
 
 def minimax(board, stone, depth, is_maximizing):
@@ -123,6 +111,14 @@ def minimax(board, stone, depth, is_maximizing):
                     min_eval = min(min_eval, eval)
         return min_eval
 
+def dynamic_depth(empty_cells):
+    if empty_cells > 20:
+        return 2
+    elif empty_cells > 10:
+        return 3
+    else:
+        return 5
+
 def best_place_with_risk_management(board, stone):
     corners = [(0, 0), (0, 5), (5, 0), (5, 5)]
     x_squares = [(0, 1), (1, 0), (1, 1), (0, 4), (1, 5), (1, 4),
@@ -139,7 +135,7 @@ def best_place_with_risk_management(board, stone):
             if (x, y) in corners:
                 return (x, y)
 
-            score = count_flippable_stones(board, stone, x, y)
+            score = evaluate_board(make_move(board, stone, x, y), stone)
 
             if (x, y) in x_squares:
                 score -= 100
@@ -150,24 +146,28 @@ def best_place_with_risk_management(board, stone):
 
     return best_move
 
-class AruAI(object):
+class AnemoneAI(object):
 
     def face(self):
-        return "🐰"
+        return "🌺"
 
     def place(self, board, stone):
         empty_cells = sum(row.count(0) for row in board)
-        if empty_cells <= 10:
-            best_eval = -float('inf')
-            best_move = None
-            for y in range(len(board)):
-                for x in range(len(board[0])):
-                    if can_place_x_y(board, stone, x, y):
-                        new_board = make_move(board, stone, x, y)
-                        eval = minimax(new_board, stone, 3, False)
-                        if eval > best_eval:
-                            best_eval = eval
-                            best_move = (x, y)
-            return best_move
+        depth = dynamic_depth(empty_cells)
 
-        return best_place_with_risk_management(board, stone)
+        best_eval = -float('inf')
+        best_move = None
+
+        for y in range(len(board)):
+            for x in range(len(board[0])):
+                if can_place_x_y(board, stone, x, y):
+                    new_board = make_move(board, stone, x, y)
+                    eval = minimax(new_board, stone, depth, False)
+                    if eval > best_eval:
+                        best_eval = eval
+                        best_move = (x, y)
+
+        if best_move is None:
+            return None  # 打てる手がない場合
+
+        return best_move
