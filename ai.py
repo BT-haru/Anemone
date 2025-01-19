@@ -155,8 +155,8 @@ class AnemoneAI(object):
         empty_cells = sum(row.count(0) for row in board)
 
         # 手を打てない場合は "パス" を示す特別な値を返す
-        if not can_place(board, stone):
-            return (-1, -1)
+      #  if not can_place(board, stone):
+       #     return (-1, -1)
 
         depth = dynamic_depth(empty_cells)
         best_eval = -float('inf')
