@@ -167,7 +167,7 @@ class AnemoneAI(object):
                         best_eval = eval
                         best_move = (x, y)
 
-        if best_move is None:
-            return None  # 打てる手がない場合
+       # if best_move is None:
+        #    return None  # 打てる手がない場合
 
-        return best_move
+        #return best_move
