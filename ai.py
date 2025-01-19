@@ -84,12 +84,6 @@ def evaluate_board(board, stone):
             elif board[y][x] == opponent:
                 score -= weight_map[y][x]
 
-    # 安定石の評価（隅の石など動かされない石を評価）
-    for y in [0, len(board) - 1]:
-        for x in [0, len(board[0]) - 1]:
-            if board[y][x] == stone:
-                score += 50
-
     return score
 
 def minimax(board, stone, depth, is_maximizing):
@@ -159,8 +153,12 @@ class AnemoneAI(object):
 
     def place(self, board, stone):
         empty_cells = sum(row.count(0) for row in board)
-        depth = dynamic_depth(empty_cells)
 
+        # 手を打てない場合は "パス" を示す特別な値を返す
+        if not can_place(board, stone):
+            return (-1, -1)
+
+        depth = dynamic_depth(empty_cells)
         best_eval = -float('inf')
         best_move = None
 
